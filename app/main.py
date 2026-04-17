@@ -90,3 +90,30 @@ def create_user(
     db.refresh(new_user)
 
     return new_user
+
+@app.post("/students", response_model=schemas.StudentRead)
+def create_student(
+    student_data: schemas.StudentCreate,
+    current_user=Depends(auth.require_admin),
+    db: Session = Depends(get_db)
+):
+    new_student = models.Student(
+        first_name=student_data.first_name,
+        last_name=student_data.last_name,
+        city=student_data.city
+    )
+
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+
+    return new_student
+
+
+@app.get("/students", response_model=list[schemas.StudentRead])
+def get_students(
+    current_user=Depends(auth.require_admin),
+    db: Session = Depends(get_db)
+):
+    students = db.query(models.Student).all()
+    return students

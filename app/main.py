@@ -117,3 +117,43 @@ def get_students(
 ):
     students = db.query(models.Student).all()
     return students
+
+@app.post("/parent-student-links")
+def create_parent_student_link(
+    link_data: schemas.ParentStudentLinkCreate,
+    current_user=Depends(auth.require_admin),
+    db: Session = Depends(get_db)
+):
+    parent_user = db.query(models.User).filter(models.User.id == link_data.parent_user_id).first()
+    if parent_user is None:
+        raise HTTPException(status_code=404, detail="Parent user nenalezen")
+
+    if parent_user.role != "parent":
+        raise HTTPException(status_code=400, detail="Zadaný user nemá roli parent")
+
+    student = db.query(models.Student).filter(models.Student.id == link_data.student_id).first()
+    if student is None:
+        raise HTTPException(status_code=404, detail="Student nenalezen")
+
+    existing_link = db.query(models.ParentStudentLink).filter(
+        models.ParentStudentLink.parent_user_id == link_data.parent_user_id,
+        models.ParentStudentLink.student_id == link_data.student_id
+    ).first()
+
+    if existing_link:
+        raise HTTPException(status_code=400, detail="Tato vazba už existuje")
+
+    new_link = models.ParentStudentLink(
+        parent_user_id=link_data.parent_user_id,
+        student_id=link_data.student_id
+    )
+
+    db.add(new_link)
+    db.commit()
+    db.refresh(new_link)
+
+    return {
+        "id": new_link.id,
+        "parent_user_id": new_link.parent_user_id,
+        "student_id": new_link.student_id
+    }

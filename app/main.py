@@ -157,3 +157,23 @@ def create_parent_student_link(
         "parent_user_id": new_link.parent_user_id,
         "student_id": new_link.student_id
     }
+
+@app.get("/my-students", response_model=list[schemas.StudentRead])
+def get_my_students(
+    current_user: dict = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user["role"] != "parent":
+        raise HTTPException(status_code=403, detail="Pouze pro rodiče")
+
+    links = db.query(models.ParentStudentLink).filter(
+        models.ParentStudentLink.parent_user_id == current_user["user_id"]
+    ).all()
+
+    student_ids = [link.student_id for link in links]
+
+    students = db.query(models.Student).filter(
+        models.Student.id.in_(student_ids)
+    ).all()
+
+    return students
